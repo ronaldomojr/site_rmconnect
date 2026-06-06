@@ -7,14 +7,18 @@
 const TAU = Math.PI * 2;
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 
-/** Amostra os pixels opacos de um PNG transparente como nuvem de pontos + cor. */
+/** Amostra os pixels opacos de um PNG transparente como nuvem de pontos + cor.
+ *  `bbox`: normaliza pelo retângulo do desenho (centra e escala p/ preencher a
+ *  cena mesmo que a imagem tenha margens). `depth`: espessura em Z. */
 export async function sampleImageToPoints(
   url: string,
   count: number,
   span = 5,
+  opts: { bbox?: boolean; depth?: number; size?: number } = {},
 ): Promise<{ positions: Float32Array; colors: Float32Array }> {
   const img = await loadImage(url);
-  const size = 320; // resolução de amostragem (suficiente e barata)
+  const size = opts.size ?? 340; // resolução de amostragem
+  const depth = opts.depth ?? 0.35;
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
@@ -26,14 +30,29 @@ export async function sampleImageToPoints(
   ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
   const data = ctx.getImageData(0, 0, size, size).data;
 
-  // Coleta pixels opacos
+  // Coleta pixels do desenho (opacos e não-fundo-claro) + bounding box
   const opaque: number[] = [];
+  let minX = size,
+    minY = size,
+    maxX = 0,
+    maxY = 0;
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const i = (y * size + x) * 4;
-      if (data[i + 3] > 40) opaque.push(i);
+      const bright = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      if (data[i + 3] > 50 && bright < 244) {
+        opaque.push(i);
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
     }
   }
+
+  const cX = (minX + maxX) / 2;
+  const cY = (minY + maxY) / 2;
+  const bMax = Math.max(maxX - minX, maxY - minY) || size;
 
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
@@ -41,9 +60,14 @@ export async function sampleImageToPoints(
     const i = opaque[(Math.random() * opaque.length) | 0] ?? 0;
     const px = (i / 4) % size;
     const py = ((i / 4) / size) | 0;
-    positions[p * 3] = (px / size - 0.5) * span;
-    positions[p * 3 + 1] = -(py / size - 0.5) * span;
-    positions[p * 3 + 2] = (Math.random() - 0.5) * 0.35; // leve profundidade → 3D
+    if (opts.bbox) {
+      positions[p * 3] = ((px - cX) / bMax) * span;
+      positions[p * 3 + 1] = -((py - cY) / bMax) * span;
+    } else {
+      positions[p * 3] = (px / size - 0.5) * span;
+      positions[p * 3 + 1] = -(py / size - 0.5) * span;
+    }
+    positions[p * 3 + 2] = (Math.random() - 0.5) * depth;
     colors[p * 3] = data[i] / 255;
     colors[p * 3 + 1] = data[i + 1] / 255;
     colors[p * 3 + 2] = data[i + 2] / 255;
@@ -76,46 +100,9 @@ export function fibonacciSphere(count: number, radius: number, jitter = 0): Floa
   return out;
 }
 
-/** Forma de cérebro em LINE-ART (igual à estética de traço da logo): contorno
- *  ondulado (gyri) + fenda central + sulcos. Metáfora de IA/"pensar". */
-export function brainShape(count: number): Float32Array {
-  const out = new Float32Array(count * 3);
-  const A = 1.5; // meia-largura do contorno
-  const B = 1.95; // meia-altura (frente-trás)
-  const depth = 0.28;
-  const j = () => (Math.random() - 0.5);
-  for (let i = 0; i < count; i++) {
-    const t = Math.random();
-    let x: number, y: number;
-    if (t < 0.42) {
-      // contorno externo ondulado (giros do córtex)
-      const th = Math.random() * Math.PI * 2;
-      const R = 1 + 0.1 * Math.sin(th * 7) + 0.05 * Math.sin(th * 13);
-      x = Math.cos(th) * A * R;
-      y = Math.sin(th) * B * R;
-    } else if (t < 0.52) {
-      // fenda longitudinal central (linha vertical levemente ondulada)
-      const u = Math.random() * 2 - 1;
-      x = Math.sin(u * 6) * 0.05;
-      y = u * B * 0.92;
-    } else {
-      // sulcos: linhas onduladas horizontais dentro de cada hemisfério
-      const side = Math.random() < 0.5 ? 1 : -1;
-      const row = Math.floor(Math.random() * 6);
-      const yy = (row / 5 - 0.5) * 2 * B * 0.78;
-      const halfW = A * Math.sqrt(Math.max(0, 1 - (yy / B) * (yy / B)));
-      const u = Math.random();
-      const xx = 0.12 + (halfW * 0.95 - 0.12) * u;
-      const wig = Math.sin(u * Math.PI * 4 + row) * 0.1;
-      x = side * xx;
-      y = yy + wig * B * 0.12;
-    }
-    out[i * 3] = x + j() * 0.03;
-    out[i * 3 + 1] = y + j() * 0.03;
-    out[i * 3 + 2] = j() * depth;
-  }
-  return out;
-}
+/* O cérebro (cena de IA) agora vem de uma IMAGEM real amostrada como partículas:
+   sampleImageToPoints("/brain.png", …, { bbox: true }). A versão procedural antiga
+   foi removida. */
 
 /** Vários "painéis" retangulares em camadas — metáfora de dashboard/UI. */
 export function dashboardGrid(count: number): Float32Array {

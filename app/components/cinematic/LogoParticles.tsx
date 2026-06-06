@@ -6,7 +6,6 @@ import * as THREE from "three";
 import { particleVertex, particleFragment } from "./shaders";
 import {
   sampleImageToPoints,
-  brainShape,
   dashboardGrid,
   flowLines,
   expandedNetwork,
@@ -42,16 +41,20 @@ export default function LogoParticles({
 
   useEffect(() => {
     let alive = true;
-    sampleImageToPoints("/logo-mark.png", count, 5).then(({ positions, colors }) => {
+    Promise.all([
+      sampleImageToPoints("/logo-mark.png", count, 5),
+      // Cérebro: imagem real (referência) amostrada — span ~um pouco maior que a logo
+      sampleImageToPoints("/brain.png", count, 4.2, { bbox: true, depth: 0.2, size: 420 }),
+    ]).then(([logo, brain]) => {
       if (!alive) return;
       const rand = new Float32Array(count * 3);
       for (let i = 0; i < rand.length; i++) rand[i] = Math.random();
       setTargets({
-        logo: positions,
-        color: colors,
+        logo: logo.positions,
+        color: logo.colors,
         flows: flowLines(count),
         grid: dashboardGrid(count),
-        neural: brainShape(count),
+        neural: brain.positions,
         scale: expandedNetwork(count),
         rand,
       });
@@ -73,22 +76,17 @@ export default function LogoParticles({
   );
 
   useFrame((state) => {
-    // @ts-expect-error debug temporário
-    const forced = typeof window.__forceP === "number" ? window.__forceP : null;
-    const driven = forced ?? progress.current.value;
     const mat = matRef.current;
     if (mat) {
       const u = mat.uniforms;
       // suaviza levemente o progresso vindo do scroll
-      u.uProgress.value += (driven - u.uProgress.value) * 0.12;
+      u.uProgress.value += (progress.current.value - u.uProgress.value) * 0.12;
       u.uTime.value = state.clock.elapsedTime;
       u.uPixelRatio.value = gl.getPixelRatio();
-      // @ts-expect-error debug temporário
-      window.__prog = u.uProgress.value;
     }
     const pts = pointsRef.current;
     if (pts) {
-      const p = driven;
+      const p = progress.current.value;
       // Oscilação de perspectiva dirigida pelo scroll (±~28°): dá tridimensiona-
       // lidade sem virar de costas, mantendo as formas legíveis. Volta a ZERO nas
       // pontas (p=0 e p=5) → a logo inicial e a final encaram a câmera de frente.
