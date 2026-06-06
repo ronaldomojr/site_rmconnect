@@ -33,6 +33,24 @@ const mountStore = {
 function SceneText({ index }: { index: number }) {
   const scene = SCENES[index];
   const isLast = index === SCENES.length - 1;
+
+  // Último take: encerra com o NOME da marca em texto branco (mesma fonte das
+  // demais frases) + CTA. Sem kicker roxo e sem frase — reforça o nome da empresa.
+  if (isLast) {
+    return (
+      <div
+        className={`scene-overlay scene-${index} absolute inset-x-0 bottom-[14%] flex flex-col items-center px-6 text-center sm:bottom-[16%]`}
+      >
+        <h2 className="max-w-4xl font-display text-3xl font-bold leading-[1.1] tracking-tight text-balance sm:text-5xl lg:text-6xl">
+          RmConnect
+        </h2>
+        <div className="pointer-events-auto mt-9">
+          <WhatsAppButton className="px-7 py-3.5 text-base">Agende uma reunião</WhatsAppButton>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`scene-overlay scene-${index} absolute inset-x-0 bottom-[14%] flex flex-col items-center px-6 text-center sm:bottom-[16%]`}
@@ -52,11 +70,6 @@ function SceneText({ index }: { index: number }) {
             </li>
           ))}
         </ul>
-      )}
-      {isLast && (
-        <div className="pointer-events-auto mt-9">
-          <WhatsAppButton className="px-7 py-3.5 text-base">Agende uma reunião</WhatsAppButton>
-        </div>
       )}
     </div>
   );
@@ -120,7 +133,7 @@ export default function StoryStage({
         scrollTrigger: {
           trigger: el,
           start: "top top",
-          end: "+=560%",
+          end: "+=480%",
           scrub: 1,
           pin: true,
           anticipatePin: 1,
@@ -129,11 +142,10 @@ export default function StoryStage({
             onActiveChange?.(self.isActive);
           },
           onUpdate: (self) => {
-            // O morph é dirigido pelo progresso do ScrollTrigger com um
-            // remapeamento: o ScrollSmoother "come" os últimos ~15% do scroll,
-            // então normalizamos por 0.83 para a animação SEMPRE completar
-            // (valor 5 = logo 100% formada e de frente) dentro do alcance real.
-            progress.current.value = Math.min(self.progress / 0.83, 1) * 5;
+            // O morph é dirigido pelo progresso do ScrollTrigger. Normalizamos por
+            // 0.96: a logo se forma ~no fim do pin (cauda morta mínima), então
+            // uma rolada a mais já libera o scroll para o resto do site.
+            progress.current.value = Math.min(self.progress / 0.96, 1) * 5;
           },
         },
       });
@@ -141,9 +153,9 @@ export default function StoryStage({
       // A stage começa ativa (no topo) → header oculto desde já.
       onActiveChange?.(true);
 
-      // Base de tempo da timeline (6 unidades) p/ posicionar os textos das cenas;
-      // o valor do morph em si vem do onUpdate acima (não deste tween).
-      tl.to({ _: 0 }, { _: 1, duration: 6, ease: "none" }, 0);
+      // Base de tempo da timeline (alinhada ao remap 0.96 → total = 5/0.96 ≈ 5.21)
+      // p/ posicionar os textos das cenas; o morph em si vem do onUpdate acima.
+      tl.to({ _: 0 }, { _: 1, duration: 5.21, ease: "none" }, 0);
 
       // Sincroniza textos com a narrativa (tempo == índice da cena).
       // A cena 0 só entra DEPOIS de iniciar a rolagem (topo = só logo + partículas).
