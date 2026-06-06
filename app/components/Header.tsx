@@ -39,12 +39,12 @@ export default function Header({ hidden = false }: { hidden?: boolean }) {
       <div className="header-bar mx-auto mt-3 flex max-w-7xl items-center justify-between gap-4 rounded-full border border-transparent px-4 py-2.5 sm:px-6">
         <a href="#topo" className="flex items-center gap-2" aria-label="RM Connect — início">
           <Image
-            src="/logo-wordmark.png"
+            src="/logo-mark.png"
             alt="RM Connect"
-            width={150}
-            height={32}
+            width={80}
+            height={80}
             priority
-            className="h-7 w-auto object-contain"
+            className="h-10 w-auto object-contain"
           />
         </a>
 

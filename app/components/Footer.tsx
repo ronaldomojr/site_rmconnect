@@ -7,11 +7,11 @@ export default function Footer() {
       <div className="mx-auto flex max-w-7xl flex-col gap-10 px-6 py-14 sm:flex-row sm:items-start sm:justify-between">
         <div className="max-w-sm">
           <Image
-            src="/logo-wordmark.png"
+            src="/logo-mark.png"
             alt="RM Connect"
-            width={170}
-            height={36}
-            className="h-8 w-auto object-contain"
+            width={80}
+            height={80}
+            className="h-12 w-auto object-contain"
           />
           <p className="mt-4 text-sm leading-relaxed text-muted">
             Software sob demanda e automação inteligente com IA. Infraestruturas digitais
